@@ -24,7 +24,6 @@
 (defn int-graph [G]
   (reduce
    (fn [G' [v edges]]
-     (println v edges)
      (assoc G' (Integer. v) (vec (map #(Integer. %) edges))))
    {}
    G))
@@ -41,10 +40,6 @@
        (merge-with concat G' transposed-vertex)))
    {}
    G))
-
-(def simple-graph (int-graph (load-graph "scc_test_case_1.txt")))
-;(dfs (transpose simple-graph) 9)
-(def transposed (transpose simple-graph))
 
 (defn dfs
   ([G u]
@@ -75,27 +70,52 @@
              v))))
      ))
 
-(dfs-by-finishing-times transposed 9)
-
 (defn finishing-times [G]
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each"
   (let [G' (transpose G)
         vertices (sort #(< %2 %1) (keys G))]
     (loop [[u & vs] vertices, explored #{}, finished []]
-      (cond
-       (nil? u) finished
-       :else (let [path (dfs-by-finishing-times G' [u] explored)
-                   new-explored (into explored (set path))]
+      (if (nil? u)
+       finished
+       (let [path (dfs-by-finishing-times G' [u] explored)
+             new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
                  (concat finished path)))))
     ))
 
-(def simple-graph (int-graph (load-graph "scc_test_case_1.txt")))
-;(dfs (transpose simple-graph) 9)
+(defn leaders [G vertices-by-finishing-time]
+  "Second pass of Kosaraju's algorithm.
+   Init depth first searches in order of the vertices obtained in the 1st pass"
+  (loop [[v & vs] (reverse vertices-by-finishing-time), explored #{}, leaders {}]
+    (if (nil? v)
+      leaders
+      (let [path (dfs G [v] explored)
+            new-explored (into explored (set path))]
+        (recur (remove new-explored vs)
+               new-explored
+               (merge leaders {v path}))))))
+
+(defn scc [G]
+  (let [G' (int-graph G)]
+    (leaders G' (finishing-times G'))))
+
+(defn scc-sizes [G]
+  (take 5 (sort #(< %2 %1) (map count (vals (scc G))))))
+
+(def simple-graph (int-graph (load-graph "scc_simple_graph_1.txt")))
+(def simple-graph-2 (int-graph (load-graph "scc_simple_graph_2.txt")))
+(def simple-graph-3 (int-graph (load-graph "scc_simple_graph_3.txt")))
+(def simple-graph-4 (int-graph (load-graph "scc_simple_graph_4.txt")))
+;(def huge-graph (int-graph (load-graph "SCC.txt")))
+
 (def transposed (transpose simple-graph))
-;(finishing-times simple-graph)
+
+(scc simple-graph-4)
+
+;FIXME: dies with StackOverflowError
+;(scc-sizes huge-graph)
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
