@@ -42,52 +42,64 @@
    {}
    G))
 
+(def simple-graph (int-graph (load-graph "scc_test_case_1.txt")))
+;(dfs (transpose simple-graph) 9)
+(def transposed (transpose simple-graph))
+
 (defn dfs
   ([G u]
      (dfs G [u] #{u}))
   ([G [v & vs] explored]
      ;(println "G: " G "v: " (class v) " neighbors: " (get G v) " explored: " explored)
      (if (nil? v)
-         []
-         (cons v
-               (dfs G
-                     (remove explored (concat (get G v) vs))
-                     (conj explored v))))
+       []
+       (cons v
+             (dfs G
+                  (remove explored (concat (get G v) vs))
+                  (conj explored v))))
      ))
 
-;(dfs transposed "9")
-;(dfs transposed "6")
+(defn dfs-by-finishing-times
+  ([G u]
+     (dfs-by-finishing-times G [u] #{u}))
+  ([G [v & vs] explored]
+     ;(println "G: " G "v: " (class v) " neighbors: " (get G v) " explored: " explored)
+     (if (nil? v)
+       []
+       (let [neighbors (remove explored (get G v))]
+         (if (empty? neighbors)
+           (cons v (dfs-by-finishing-times G vs explored))
+           (conj
+             (vec
+               (dfs-by-finishing-times G (concat neighbors vs) (conj explored v)))
+             v))))
+     ))
+
+(dfs-by-finishing-times transposed 9)
 
 (defn finishing-times [G]
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each"
-  (let [;G' (assoc (transpose G) 6 [3 8])
-        G' (transpose G)
+  (let [G' (transpose G)
         vertices (sort #(< %2 %1) (keys G))]
-    (loop [[u & vs] vertices, explored #{}, leaders {}, finished []]
+    (loop [[u & vs] vertices, explored #{}, finished []]
       (cond
        (nil? u) finished
-       :else (let [path (dfs G' [u] explored)
-                   _ (println path)
+       :else (let [path (dfs-by-finishing-times G' [u] explored)
                    new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
-                 (merge leaders {u path})
-                 (concat finished (reverse path)))))
-      )))
-
-
+                 (concat finished path)))))
+    ))
 
 (def simple-graph (int-graph (load-graph "scc_test_case_1.txt")))
-(dfs (transpose simple-graph) 9)
+;(dfs (transpose simple-graph) 9)
 (def transposed (transpose simple-graph))
-(finishing-times simple-graph)
-
-(println simple-graph)
+;(finishing-times simple-graph)
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
-    (is (or (= (map str ft) [3 5 2 8 6 9 1 4 7]
-            (= (map str ft) [5 2 8 3 6 9 1 4 7]))))))
+    (is (or (= ft [3 5 2 8 6 9 1 4 7])
+            (= ft [5 2 8 3 6 9 1 4 7])))))
 
 (run-all-tests #"algorithms.strongly-connected-components")
