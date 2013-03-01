@@ -1,3 +1,4 @@
+; see https://class.coursera.org/algo-003/forum/thread?thread_id=490 for test cases
 (ns algorithms.strongly-connected-components
   (:use clojure.test)
   (:use clojure.java.io)
@@ -43,32 +44,36 @@
 
 (defn dfs
   ([G u]
-     (dfs G [u] #{u}))
-  ([G [v & vs] explored]
-     ;(println "G: " G "v: " (class v) " neighbors: " (get G v) " explored: " explored)
+     (dfs G [u] #{u} []))
+  ([G u explored]
+     (dfs G [u] explored []))
+  ([G [v & vs] explored path]
      (if (nil? v)
-       []
-       (cons v
-             (dfs G
-                  (remove explored (concat (get G v) vs))
-                  (conj explored v))))
+       (reverse path)
+       (recur G
+              (remove explored (concat (get G v) vs))
+              (conj explored v)
+              (cons v path)))
      ))
+
+;;(dfs simple-graph 9)
 
 (defn dfs-by-finishing-times
   ([G u]
-     (dfs-by-finishing-times G [u] #{u}))
-  ([G [v & vs] explored]
-     ;(println "G: " G "v: " (class v) " neighbors: " (get G v) " explored: " explored)
+     (dfs-by-finishing-times G [u] #{u} [] []))
+  ([G u explored]
+     (dfs-by-finishing-times G [u] explored [] []))
+  ([G [v & vs] explored dead-ends step-overs]
      (if (nil? v)
-       []
+       (concat dead-ends step-overs)
        (let [neighbors (remove explored (get G v))]
          (if (empty? neighbors)
-           (cons v (dfs-by-finishing-times G vs explored))
-           (conj
-             (vec
-               (dfs-by-finishing-times G (concat neighbors vs) (conj explored v)))
-             v))))
+           (recur G vs explored (conj dead-ends v) step-overs)
+           (recur G (concat neighbors vs) (conj explored v) dead-ends (cons v step-overs)))))
      ))
+
+;; (dfs-by-finishing-times transposed 9)
+;;
 
 (defn finishing-times [G]
   "The first pass of Kosaraju's algorithm.
@@ -78,12 +83,13 @@
     (loop [[u & vs] vertices, explored #{}, finished []]
       (if (nil? u)
        finished
-       (let [path (dfs-by-finishing-times G' [u] explored)
+       (let [path (dfs-by-finishing-times G' u explored)
              new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
                  (concat finished path)))))
     ))
+;;(finishing-times simple-graph)
 
 (defn leaders [G vertices-by-finishing-time]
   "Second pass of Kosaraju's algorithm.
@@ -91,7 +97,7 @@
   (loop [[v & vs] (reverse vertices-by-finishing-time), explored #{}, leaders {}]
     (if (nil? v)
       leaders
-      (let [path (dfs G [v] explored)
+      (let [path (dfs G v explored)
             new-explored (into explored (set path))]
         (recur (remove new-explored vs)
                new-explored
@@ -112,14 +118,29 @@
 
 (def transposed (transpose simple-graph))
 
+(scc simple-graph)
 (scc simple-graph-4)
+(scc-sizes simple-graph-4)
 
-;FIXME: dies with StackOverflowError
-;(scc-sizes huge-graph)
+;FIXME: Sometimes (scc huge-graph) dies with StackOverflowError
+                                        ;(scc-sizes huge-graph)
+                                        ; Profiler shows 187M of Integer objects (occupied by the graph's reprez)
+; Also, lots of PersistentVectors are created. This could be avoided.
+
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
     (is (or (= ft [3 5 2 8 6 9 1 4 7])
             (= ft [5 2 8 3 6 9 1 4 7])))))
+
+(deftest test-dfs-by-finishing-times
+  (is (= (dfs-by-finishing-times transposed 9) [3 5 2 8 6 9])))
+
+(deftest test-dfs
+  (is (= (dfs simple-graph 9) [9 3 6 7 1 4])))
+
+(deftest test-scc
+  (is (= (scc simple-graph) {8 [8 5 2], 9 [9 3 6], 7 [7 1 4]})))
+
 
 (run-all-tests #"algorithms.strongly-connected-components")
