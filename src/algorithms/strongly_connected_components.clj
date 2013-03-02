@@ -4,6 +4,8 @@
   (:use clojure.java.io)
   (:import (java.io BufferedReader FileReader)))
 
+;; StackOverflow on tail-recursive function?
+;; http://stackoverflow.com/questions/4249926/stackoverflowerror-on-tail-recursive-function
 (defn dirname [path]
   (.getParent (java.io.File. path)))
 
@@ -38,7 +40,7 @@
                 (assoc transposed-u v [u]))
               {}
               vs)]
-       (merge-with concat G' transposed-vertex)))
+       (merge-with into G' transposed-vertex)))
    {}
    G))
 
@@ -51,7 +53,7 @@
      (if (nil? v)
        (reverse path)
        (recur G
-              (remove explored (concat (get G v) vs))
+              (remove explored (into (get G v) vs))
               (conj explored v)
               (cons v path)))
      ))
@@ -65,29 +67,35 @@
      (dfs-by-finishing-times G [u] explored [] []))
   ([G [v & vs] explored dead-ends step-overs]
      (if (nil? v)
-       (concat dead-ends step-overs)
+       (into dead-ends step-overs)
        (let [neighbors (remove explored (get G v))]
          (if (empty? neighbors)
            (recur G vs explored (conj dead-ends v) step-overs)
-           (recur G (concat neighbors vs) (conj explored v) dead-ends (cons v step-overs)))))
+           (recur G (into neighbors vs) (conj explored v) dead-ends (cons v step-overs)))))
      ))
 
 ;; (dfs-by-finishing-times transposed 9)
 ;;
 
+(defn vertices [G]
+  (into
+    (set (keys G))
+    (reduce into (vals G))))
+
 (defn finishing-times [G]
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each"
   (let [G' (transpose G)
-        vertices (sort #(< %2 %1) (keys G))]
+        vertices (sort #(< %2 %1) (vertices G))]
     (loop [[u & vs] vertices, explored #{}, finished []]
       (if (nil? u)
        finished
        (let [path (dfs-by-finishing-times G' u explored)
+             _ (println "path: " path)
              new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
-                 (concat finished path)))))
+                 (into finished path)))))
     ))
 ;;(finishing-times simple-graph)
 
@@ -104,8 +112,7 @@
                (merge leaders {v path}))))))
 
 (defn scc [G]
-  (let [G' (int-graph G)]
-    (leaders G' (finishing-times G'))))
+  (leaders G (finishing-times G)))
 
 (defn scc-sizes [G]
   (take 5 (sort #(< %2 %1) (map count (vals (scc G))))))
@@ -114,19 +121,21 @@
 (def simple-graph-2 (int-graph (load-graph "scc_simple_graph_2.txt")))
 (def simple-graph-3 (int-graph (load-graph "scc_simple_graph_3.txt")))
 (def simple-graph-4 (int-graph (load-graph "scc_simple_graph_4.txt")))
-;(def huge-graph (int-graph (load-graph "SCC.txt")))
+
+;; See https://class.coursera.org/algo-003/forum/thread?thread_id=490 for the test-case graphs
+(def test-case-5 (int-graph (load-graph "scc_test_case_5.txt")))
+(def test-case-7 (int-graph (load-graph "scc_test_case_7.txt")))
+
+;;(def huge-graph (int-graph (load-graph "SCC.txt")))
 
 (def transposed (transpose simple-graph))
 
-(scc simple-graph)
-(scc simple-graph-4)
-(scc-sizes simple-graph-4)
-
-;FIXME: Sometimes (scc huge-graph) dies with StackOverflowError
-                                        ;(scc-sizes huge-graph)
-                                        ; Profiler shows 187M of Integer objects (occupied by the graph's reprez)
-; Also, lots of PersistentVectors are created. This could be avoided.
-
+;;(scc simple-graph)
+;;(scc simple-graph-4)
+;;(scc-sizes simple-graph-4)
+;FIXME: this returns 6,6,1 instead of 6,3,2,1,0. Maybe that's because there are loops?
+(scc-sizes test-case-5)
+(scc-sizes test-case-7)
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
@@ -142,5 +151,8 @@
 (deftest test-scc
   (is (= (scc simple-graph) {8 [8 5 2], 9 [9 3 6], 7 [7 1 4]})))
 
+(deftest test-scc-sizes
+  (is (= (scc-sizes {1 [3], 2 [1 3]}) [1 1 1]))
+  (is (= (scc-sizes {3 [1], 2 [1 3]}) [1 1 1])))
 
 (run-all-tests #"algorithms.strongly-connected-components")
