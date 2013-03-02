@@ -62,20 +62,19 @@
 
 (defn dfs-by-finishing-times
   ([G u]
-     (dfs-by-finishing-times G [u] #{u} [] []))
+     (dfs-by-finishing-times G [u] #{u} []))
   ([G u explored]
-     (dfs-by-finishing-times G [u] explored [] []))
-  ([G [v & vs] explored dead-ends step-overs]
+     (dfs-by-finishing-times G [u] explored []))
+  ([G [v & vs :as stack] explored path]
      (if (nil? v)
-       (into dead-ends step-overs)
-       (let [neighbors (remove explored (get G v))]
-         (if (empty? neighbors)
-           (recur G vs explored (conj dead-ends v) step-overs)
-           (recur G (into neighbors vs) (conj explored v) dead-ends (cons v step-overs)))))
+        (distinct path)
+        (let [neighbors (vec (remove explored (get G v)))]
+          (if (empty? neighbors)
+            (recur G vs (conj explored v) (conj path v))
+            (recur G (into neighbors (conj vs v)) (conj explored v) path))))
      ))
 
-;; (dfs-by-finishing-times transposed 9)
-;;
+;;(finishing-times test-case-5)
 
 (defn vertices [G]
   (into
@@ -86,12 +85,11 @@
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each"
   (let [G' (transpose G)
-        vertices (sort #(< %2 %1) (vertices G))]
+        vertices (sort #(< %2 %1) (vertices G'))]
     (loop [[u & vs] vertices, explored #{}, finished []]
       (if (nil? u)
        finished
        (let [path (dfs-by-finishing-times G' u explored)
-             _ (println "path: " path)
              new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
@@ -136,6 +134,8 @@
 ;FIXME: this returns 6,6,1 instead of 6,3,2,1,0. Maybe that's because there are loops?
 (scc-sizes test-case-5)
 (scc-sizes test-case-7)
+
+(scc test-case-5)
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
