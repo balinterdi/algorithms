@@ -15,6 +15,7 @@
 (defn data-path [file-name]
   (clojure.string/join (System/getProperty "file.separator")
                        (vector (System/getProperty "user.dir") "data" file-name)))
+
 (defn load-graph [file-name]
   (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
     (reduce
@@ -23,6 +24,18 @@
          (assoc graph vertex (-> (get graph vertex []) (conj node)))))
      {}
      (line-seq rdr))))
+
+(defn load-graph-and-stats [file-name]
+  (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
+     (reduce
+      (fn [[graph transposed vertices] line]
+        (let [[u v] (clojure.string/split line #"\s+")]
+          (vector
+           (assoc! graph u (-> (get graph u []) (conj v)))
+           (assoc! transposed v (-> (get transposed v []) (conj u)))
+           (-> (conj! vertices u) (conj! v)))))
+      [(transient {}) (transient {}) (transient #{})]
+      (line-seq rdr)))))
 
 (defn int-graph [G]
   (reduce
@@ -58,43 +71,58 @@
               (cons v path)))
      ))
 
-;;(dfs simple-graph 9)
-
+;; Running (dfs-by-finishing-times tposed "51914" #{})) on the huge graph
+;; explores ~10.000 nodes in 57 seconds. Using transients where possible
 (defn dfs-by-finishing-times
   ([G u]
-     (dfs-by-finishing-times G [u] #{u} []))
+     ;;(dfs-by-finishing-times G [u] (transient #{u}) (transient []))
+     (dfs-by-finishing-times G [u] (transient #{u}) [] 0)
+     )
   ([G u explored]
-     (dfs-by-finishing-times G [u] explored []))
-  ([G [v & vs :as stack] explored path]
-     (if (nil? v)
-        (distinct path)
-        (let [neighbors (vec (remove explored (get G v)))]
-          (if (empty? neighbors)
-            (recur G vs (conj explored v) (conj path v))
-            (recur G (into neighbors (conj vs v)) (conj explored v) path))))
+     ;;     (dfs-by-finishing-times G [u] (transient explored) (transient []))
+     (dfs-by-finishing-times G [u] (transient explored) [] 0)
+     )
+  ([G [v & vs :as stack] explored path iter-cnt]
+     ;;(println "stack: " (count stack) " explored: " (count explored) "path: " (count path))
+     (do
+       (when (zero? (rem iter-cnt 1000))
+         (println "Iter: " iter-cnt "Explored count: " (count explored)))
+       (if (> (count explored) 10000)
+         (and (println "Exiting after " (count explored) " explored nodes") path)
+         (if (seq stack)
+          (let [neighbors (persistent!
+                           (reduce
+                            (fn [c u] (if (explored u) c (conj! c u)))
+                            (transient [])
+                            (G v)))]
+            (if (empty? neighbors)
+              (recur G vs (conj! explored v) (conj path v) (inc iter-cnt))
+              (recur G (into neighbors (conj vs v)) (conj! explored v) path (inc iter-cnt))))
+          path)))
      ))
 
-;;(finishing-times test-case-5)
+;;(finishing-times (transpose test-case-5) (vertices test-case-5))
+;;(finishing-times (transpose simple-graph) (vertices simple-graph))
 
 (defn vertices [G]
   (into
     (set (keys G))
     (reduce into (vals G))))
 
-(defn finishing-times [G]
+(defn finishing-times [G vertices]
   "The first pass of Kosaraju's algorithm.
-   Scan the transpose graph of G, and mark the finishing time for each"
-  (let [G' (transpose G)
-        vertices (sort #(< %2 %1) (vertices G'))]
-    (loop [[u & vs] vertices, explored #{}, finished []]
+   Scan the transpose graph of G, and mark the finishing time for each.
+   G should already be the transposed graph"
+  (loop [[u & vs] (seq vertices), explored #{}, finished []]
       (if (nil? u)
-       finished
-       (let [path (dfs-by-finishing-times G' u explored)
+       (distinct finished)
+       (let [;_ (println u)
+             path (dfs-by-finishing-times G u explored)
              new-explored (into explored (set path))]
           (recur (remove new-explored vs)
                  new-explored
-                 (into finished path)))))
-    ))
+                 (into finished path))))))
+
 ;;(finishing-times simple-graph)
 
 (defn leaders [G vertices-by-finishing-time]
@@ -107,15 +135,16 @@
             new-explored (into explored (set path))]
         (recur (remove new-explored vs)
                new-explored
-               (merge leaders {v path}))))))
+               (merge leaders {v (distinct path)}))))))
 
-(defn scc [G]
-  (leaders G (finishing-times G)))
+(defn scc [G transposed vertices]
+  (leaders G (finishing-times transposed vertices)))
 
-(defn scc-sizes [G]
-  (take 5 (sort #(< %2 %1) (map count (vals (scc G))))))
+(defn scc-sizes [G transposed vertices]
+  (take 5 (sort #(< %2 %1) (map count (vals (scc G transposed vertices))))))
 
-(def simple-graph (int-graph (load-graph "scc_simple_graph_1.txt")))
+(def simple-graph (load-graph "scc_simple_graph_1.txt"))
+
 (def simple-graph-2 (int-graph (load-graph "scc_simple_graph_2.txt")))
 (def simple-graph-3 (int-graph (load-graph "scc_simple_graph_3.txt")))
 (def simple-graph-4 (int-graph (load-graph "scc_simple_graph_4.txt")))
@@ -126,24 +155,24 @@
 
 ;;(def huge-graph (int-graph (load-graph "SCC.txt")))
 
-(def transposed (transpose simple-graph))
+;;(def transposed (transpose simple-graph))
 
 ;;(scc simple-graph)
 ;;(scc simple-graph-4)
 ;;(scc-sizes simple-graph-4)
-;FIXME: this returns 6,6,1 instead of 6,3,2,1,0. Maybe that's because there are loops?
-(scc-sizes test-case-5)
-(scc-sizes test-case-7)
+;;(scc test-case-5)
+;;(scc-sizes test-case-7)
+;;(scc-sizes simple-graph (transpose simple-graph) (vertices simple-graph))
 
-(scc test-case-5)
+;;(scc test-case-5)
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
     (is (or (= ft [3 5 2 8 6 9 1 4 7])
             (= ft [5 2 8 3 6 9 1 4 7])))))
 
-(deftest test-dfs-by-finishing-times
-  (is (= (dfs-by-finishing-times transposed 9) [3 5 2 8 6 9])))
+(comment (deftest test-dfs-by-finishing-times
+   (is (= (dfs-by-finishing-times transposed 9) [3 5 2 8 6 9]))))
 
 (deftest test-dfs
   (is (= (dfs simple-graph 9) [9 3 6 7 1 4])))
@@ -155,4 +184,4 @@
   (is (= (scc-sizes {1 [3], 2 [1 3]}) [1 1 1]))
   (is (= (scc-sizes {3 [1], 2 [1 3]}) [1 1 1])))
 
-(run-all-tests #"algorithms.strongly-connected-components")
+;(run-all-tests #"algorithms.strongly-connected-components")
