@@ -72,19 +72,18 @@
      ))
 
 ;; Running (dfs-by-finishing-times tposed "51914" #{})) on the huge graph
-;; explores ~10.000 nodes in 57 seconds. Using transients where possible
+;; where the stack was represented by a vector, explores ~10.000 nodes in 60 seconds.
+;; When the stack became a list, running time for exploring the same number of nodes
+;; came down to ~250 msecs, a 240x speedup! However, there is still FIXME:1 to be sorted out
+;;TODO: finish using a list for stack. I'm not sure if this can be achieved by using recur
 (defn dfs-by-finishing-times
   ([G u]
      ;;(dfs-by-finishing-times G [u] (transient #{u}) (transient []))
-     (dfs-by-finishing-times G [u] (transient #{u}) [] 0)
-     )
+     (dfs-by-finishing-times G u #{u}))
   ([G u explored]
-     ;;     (dfs-by-finishing-times G [u] (transient explored) (transient []))
-     (dfs-by-finishing-times G [u] (transient explored) [] 0)
-     )
-  ([G [v & vs :as stack] explored path iter-cnt]
      ;;(println "stack: " (count stack) " explored: " (count explored) "path: " (count path))
-     (do
+     (loop [[v & vs :as stack] (list u), explored (transient explored), path (transient []), iter-cnt 0]
+       (do
        (when (zero? (rem iter-cnt 1000))
          (println "Iter: " iter-cnt "Explored count: " (count explored)))
        (if (> (count explored) 10000)
@@ -96,9 +95,10 @@
                             (transient [])
                             (G v)))]
             (if (empty? neighbors)
-              (recur G vs (conj! explored v) (conj path v) (inc iter-cnt))
-              (recur G (into neighbors (conj vs v)) (conj! explored v) path (inc iter-cnt))))
-          path)))
+              (recur vs (conj! explored v) (conj! path v) (inc iter-cnt))
+              ;;FIXME:1 v should be added back to the end of the stack. What's more, in an efficient manner.
+              (recur (reduce (fn [stack e] (cons e stack)) vs neighbors) (conj! explored v) path (inc iter-cnt))))
+          (persistent! path)))))
      ))
 
 ;;(finishing-times (transpose test-case-5) (vertices test-case-5))
