@@ -1,61 +1,10 @@
 ; see https://class.coursera.org/algo-003/forum/thread?thread_id=490 for test cases
 (ns algorithms.strongly-connected-components
-  (:use clojure.test)
-  (:use clojure.java.io)
-  (:import (java.io BufferedReader FileReader)))
+  (:use  [algorithms.core :only [load-graph load-graph-and-stats transpose]])
+  (:use clojure.test))
 
 ;; StackOverflow on tail-recursive function?
 ;; http://stackoverflow.com/questions/4249926/stackoverflowerror-on-tail-recursive-function
-(defn dirname [path]
-  (.getParent (java.io.File. path)))
-
-(defn expand-path [path]
-  (.getCanonicalPath (java.io.File. path)))
-
-(defn data-path [file-name]
-  (clojure.string/join (System/getProperty "file.separator")
-                       (vector (System/getProperty "user.dir") "data" file-name)))
-
-(defn load-graph [file-name]
-  (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
-    (reduce
-     (fn [graph line]
-       (let [[vertex node] (clojure.string/split line #"\s+")]
-         (assoc graph vertex (-> (get graph vertex []) (conj node)))))
-     {}
-     (line-seq rdr))))
-
-(defn load-graph-and-stats [file-name]
-  (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
-     (reduce
-      (fn [[graph transposed vertices] line]
-        (let [[u v] (clojure.string/split line #"\s+")]
-          (vector
-           (assoc! graph u (-> (get graph u []) (conj v)))
-           (assoc! transposed v (-> (get transposed v []) (conj u)))
-           (-> (conj! vertices u) (conj! v)))))
-      [(transient {}) (transient {}) (transient #{})]
-      (line-seq rdr)))))
-
-(defn int-graph [G]
-  (reduce
-   (fn [G' [v edges]]
-     (assoc G' (Integer. v) (vec (map #(Integer. %) edges))))
-   {}
-   G))
-
-(defn transpose [G]
-  (reduce
-   (fn [G' [u vs]]
-     (let [transposed-vertex
-             (reduce
-              (fn [transposed-u v]
-                (assoc transposed-u v [u]))
-              {}
-              vs)]
-       (merge-with into G' transposed-vertex)))
-   {}
-   G))
 
 (defn dfs
   ([G u]
@@ -74,7 +23,8 @@
 ;; Running (dfs-by-finishing-times tposed "51914" #{})) on the huge graph
 ;; where the stack was represented by a vector, explores ~10.000 nodes in 60 seconds.
 ;; When the stack became a list, running time for exploring the same number of nodes
-;; came down to ~250 msecs, a 240x speedup! However, there is still FIXME:1 to be sorted out
+;; came down to ~250 msecs, a 240x speedup!
+;; However, there is still FIXME:1 to be sorted out
 ;;TODO: finish using a list for stack. I'm not sure if this can be achieved by using recur
 (defn dfs-by-finishing-times
   ([G u]
@@ -145,26 +95,14 @@
 
 (def simple-graph (load-graph "scc_simple_graph_1.txt"))
 
-(def simple-graph-2 (int-graph (load-graph "scc_simple_graph_2.txt")))
-(def simple-graph-3 (int-graph (load-graph "scc_simple_graph_3.txt")))
-(def simple-graph-4 (int-graph (load-graph "scc_simple_graph_4.txt")))
-
 ;; See https://class.coursera.org/algo-003/forum/thread?thread_id=490 for the test-case graphs
-(def test-case-5 (int-graph (load-graph "scc_test_case_5.txt")))
-(def test-case-7 (int-graph (load-graph "scc_test_case_7.txt")))
 
-;;(def huge-graph (int-graph (load-graph "SCC.txt")))
+(def simple-graph-2 (load-graph "scc_simple_graph_2.txt"))
+(def simple-graph-3 (load-graph "scc_simple_graph_3.txt"))
+(def simple-graph-4 (load-graph "scc_simple_graph_4.txt"))
 
-;;(def transposed (transpose simple-graph))
-
-;;(scc simple-graph)
-;;(scc simple-graph-4)
-;;(scc-sizes simple-graph-4)
-;;(scc test-case-5)
-;;(scc-sizes test-case-7)
-;;(scc-sizes simple-graph (transpose simple-graph) (vertices simple-graph))
-
-;;(scc test-case-5)
+(def test-case-5 (load-graph "scc_test_case_5.txt"))
+(def test-case-7 (load-graph "scc_test_case_7.txt"))
 
 (deftest test-finishing-times
   (let [ft (finishing-times simple-graph)]
