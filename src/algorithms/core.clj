@@ -21,6 +21,22 @@
      {}
      (line-seq rdr))))
 
+(defn load-weighted-graph [file-name]
+  (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
+    (reduce
+     (fn [graph line]
+       (let [[vertex & nodes-and-weights] (clojure.string/split line #"\s+")]
+         (assoc graph vertex
+           (merge (get graph vertex {})
+                  (reduce (fn [h weighted-edge]
+                            (let [[v w] (clojure.string/split weighted-edge #",")]
+                              (assoc h v w)))
+                          {}
+                          nodes-and-weights)))
+         ))
+     {}
+     (line-seq rdr))))
+
 (defn load-graph-and-stats [file-name]
   (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
      (reduce
