@@ -8,12 +8,12 @@
 (defn expand-path [path]
   (.getCanonicalPath (java.io.File. path)))
 
-(defn data-path [file-name]
+(defn data-path [algo-dir file-name]
   (clojure.string/join (System/getProperty "file.separator")
-                       (vector (System/getProperty "user.dir") "data" file-name)))
+                       (vector (System/getProperty "user.dir") "data" algo-dir file-name)))
 
-(defn load-graph [file-name]
-  (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
+(defn load-graph [algo-dir file-name]
+  (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
     (reduce
      (fn [graph line]
        (let [[vertex node] (clojure.string/split line #"\s+")]
@@ -21,8 +21,8 @@
      {}
      (line-seq rdr))))
 
-(defn load-weighted-graph [file-name]
-  (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
+(defn load-weighted-graph [algo-dir file-name]
+  (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
     (reduce
      (fn [graph line]
        (let [[vertex & nodes-and-weights] (clojure.string/split line #"\s+")]
@@ -37,8 +37,8 @@
      {}
      (line-seq rdr))))
 
-(defn load-graph-and-stats [file-name]
-  (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path file-name)))]
+(defn load-graph-and-stats [algo-dir file-name]
+  (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
      (reduce
       (fn [[graph transposed vertices] line]
         (let [[u v] (clojure.string/split line #"\s+")]

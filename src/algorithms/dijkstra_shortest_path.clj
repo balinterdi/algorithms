@@ -1,7 +1,10 @@
 (ns algorithms.dijkstra-shortest-path
-  (:use  [algorithms.core :only [load-weighted-graph]] ))
+  (:require  [algorithms.core :as core :only [load-weighted-graph]] ))
 
 (def infinity 1000000) ; could be Integer/MAX_VALUE
+
+(defn load-weighted-graph [file-name]
+  (core/load-weighted-graph "dijkstra" file-name))
 
 (defn vertices [G]
   (reduce (fn [vs [v edges]]

@@ -1,6 +1,5 @@
 (ns algorithms.dijkstra-shortest-path-test
   (:use clojure.test
-        [algorithms.core :only [load-weighted-graph]]
         algorithms.dijkstra-shortest-path))
 
 

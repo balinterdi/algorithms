@@ -1,10 +1,16 @@
 ; see https://class.coursera.org/algo-003/forum/thread?thread_id=490 for test cases
 (ns algorithms.strongly-connected-components
-  (:use  [algorithms.core :only [load-graph load-graph-and-stats transpose]])
+  (:require  [algorithms.core :as core :only [load-graph load-graph-and-stats transpose]])
   (:use clojure.test))
 
 ;; StackOverflow on tail-recursive function?
 ;; http://stackoverflow.com/questions/4249926/stackoverflowerror-on-tail-recursive-function
+
+(defn load-graph [file-name]
+  (core/load-graph "scc" file-name))
+
+(defn load-graph-and-stats [file-name]
+  (core/load-graph-and-stats "scc" file-name))
 
 (defn dfs
   ([G u]
@@ -87,39 +93,20 @@
                new-explored
                (merge leaders {v (distinct path)}))))))
 
-(defn scc [G transposed vertices]
-  (leaders G (finishing-times transposed vertices)))
+(defn scc
+  ([G]
+     (scc G (core/transpose G) (vertices G)))
+  ([G transposed vertices]
+     (leaders G (finishing-times transposed vertices)))
+  )
 
-(defn scc-sizes [G transposed vertices]
-  (take 5 (sort #(< %2 %1) (map count (vals (scc G transposed vertices))))))
+(defn scc-sizes
+  ([G]
+     (scc-sizes G (core/transpose G) (vertices G)))
+  ([G transposed vertices]
+     (take 5 (sort #(< %2 %1) (map count (vals (scc G transposed vertices))))))
+  )
 
-(def simple-graph (load-graph "scc_simple_graph_1.txt"))
 
-;; See https://class.coursera.org/algo-003/forum/thread?thread_id=490 for the test-case graphs
-
-(def simple-graph-2 (load-graph "scc_simple_graph_2.txt"))
-(def simple-graph-3 (load-graph "scc_simple_graph_3.txt"))
-(def simple-graph-4 (load-graph "scc_simple_graph_4.txt"))
-
-(def test-case-5 (load-graph "scc_test_case_5.txt"))
-(def test-case-7 (load-graph "scc_test_case_7.txt"))
-
-(deftest test-finishing-times
-  (let [ft (finishing-times simple-graph)]
-    (is (or (= ft [3 5 2 8 6 9 1 4 7])
-            (= ft [5 2 8 3 6 9 1 4 7])))))
-
-(comment (deftest test-dfs-by-finishing-times
-   (is (= (dfs-by-finishing-times transposed 9) [3 5 2 8 6 9]))))
-
-(deftest test-dfs
-  (is (= (dfs simple-graph 9) [9 3 6 7 1 4])))
-
-(deftest test-scc
-  (is (= (scc simple-graph) {8 [8 5 2], 9 [9 3 6], 7 [7 1 4]})))
-
-(deftest test-scc-sizes
-  (is (= (scc-sizes {1 [3], 2 [1 3]}) [1 1 1]))
-  (is (= (scc-sizes {3 [1], 2 [1 3]}) [1 1 1])))
 
 ;(run-all-tests #"algorithms.strongly-connected-components")
