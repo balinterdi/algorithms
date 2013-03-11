@@ -1,6 +1,6 @@
 ; see https://class.coursera.org/algo-003/forum/thread?thread_id=490 for test cases
 (ns algorithms.strongly-connected-components
-  (:require  [algorithms.core :as core :only [load-graph load-graph-and-stats transpose]])
+  (:require  [algorithms.core :as core])
   (:use clojure.test))
 
 ;; StackOverflow on tail-recursive function?
@@ -11,6 +11,11 @@
 
 (defn load-graph-and-stats [file-name]
   (core/load-graph-and-stats "scc" file-name))
+
+(defn vertices [G]
+  (into
+    (set (keys G))
+    (reduce into (vals G))))
 
 (defn dfs
   ([G u]
@@ -26,58 +31,51 @@
               (cons v path)))
      ))
 
-;; Running (dfs-by-finishing-times tposed "51914" #{})) on the huge graph
-;; where the stack was represented by a vector, explores ~10.000 nodes in 60 seconds.
-;; When the stack became a list, running time for exploring the same number of nodes
-;; came down to ~250 msecs, a 240x speedup!
-;; However, there is still FIXME:1 to be sorted out
-;;TODO: finish using a list for stack. I'm not sure if this can be achieved by using recur
+;; The algorithm (when it prints every 100.000 iteration) runs the following
+;; form in 22.933 secs:
+;; (def ftimes (dfs-by-finishing-times T "51914" #{}))
 (defn dfs-by-finishing-times
   ([G u]
      ;;(dfs-by-finishing-times G [u] (transient #{u}) (transient []))
-     (dfs-by-finishing-times G u #{u}))
+     (dfs-by-finishing-times G u #{}))
   ([G u explored]
      ;;(println "stack: " (count stack) " explored: " (count explored) "path: " (count path))
-     (loop [[v & vs :as stack] (list u), explored (transient explored), path (transient []), iter-cnt 0]
+     (loop [[v & vs :as stack] (list u), explored (transient explored), lhalf [], rhalf [],  iter-cnt 0]
        (do
-       (when (zero? (rem iter-cnt 1000))
-         (println "Iter: " iter-cnt "Explored count: " (count explored)))
-       (if (> (count explored) 10000)
-         (and (println "Exiting after " (count explored) " explored nodes") path)
+       (if (> (count explored) (Integer/MAX_VALUE))
+         (and (println "Exiting after " (count explored) " explored nodes") (concat lhalf rhalf))
          (if (seq stack)
           (let [neighbors (persistent!
                            (reduce
                             (fn [c u] (if (explored u) c (conj! c u)))
                             (transient [])
                             (G v)))]
-            (if (empty? neighbors)
-              (recur vs (conj! explored v) (conj! path v) (inc iter-cnt))
-              ;;FIXME:1 v should be added back to the end of the stack. What's more, in an efficient manner.
-              (recur (reduce (fn [stack e] (cons e stack)) vs neighbors) (conj! explored v) path (inc iter-cnt))))
-          (persistent! path)))))
+            (cond
+             (explored v) (recur vs explored lhalf rhalf (inc iter-cnt))
+             (empty? neighbors) (recur vs (conj! explored v) (conj lhalf v) rhalf (inc iter-cnt))
+             :else (recur (reduce (fn [stack e] (cons e stack)) vs neighbors)
+                     (conj! explored v)
+                     lhalf
+                     (cons v rhalf)
+                     (inc iter-cnt))))
+          (concat lhalf rhalf)))))
      ))
-
-;;(finishing-times (transpose test-case-5) (vertices test-case-5))
-;;(finishing-times (transpose simple-graph) (vertices simple-graph))
-
-(defn vertices [G]
-  (into
-    (set (keys G))
-    (reduce into (vals G))))
 
 (defn finishing-times [G vertices]
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each.
    G should already be the transposed graph"
-  (loop [[u & vs] (seq vertices), explored #{}, finished []]
-      (if (nil? u)
-       (distinct finished)
-       (let [;_ (println u)
-             path (dfs-by-finishing-times G u explored)
-             new-explored (into explored (set path))]
-          (recur (remove new-explored vs)
-                 new-explored
-                 (into finished path))))))
+  ;;FIXME: Maybe passing several tens or hundreds of MBs of data to dfs is not such a good idea?
+  (loop [[u & vs :as stack] (seq vertices)
+          explored #{},
+          finished []]
+     (if (nil? u)
+       finished
+       (let [path (dfs-by-finishing-times G u explored)
+             new-explored (into explored path)]
+         (recur (remove new-explored vs)
+                new-explored
+                (into finished path))))))
 
 ;;(finishing-times simple-graph)
 

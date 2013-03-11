@@ -68,3 +68,6 @@
        (merge-with into G' transposed-vertex)))
    {}
    G))
+
+(defn sort-decreasing [coll]
+  (sort (fn [n1 n2] (> (Integer. n1) (Integer. n2))) coll))
