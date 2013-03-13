@@ -12,19 +12,24 @@
   (clojure.string/join (System/getProperty "file.separator")
                        (vector (System/getProperty "user.dir") "data" algo-dir file-name)))
 
-(defn load-graph [algo-dir file-name]
+(defn load-from-file [algo-dir file-name reduce-fn init-val]
   (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
-    (reduce
-     (fn [graph line]
+    (reduce reduce-fn init-val (line-seq rdr))))
+
+(defn load-graph [algo-dir file-name]
+  (load-from-file
+    algo-dir
+    file-name
+    (fn [graph line]
        (let [[vertex node] (clojure.string/split line #"\s+")]
          (assoc graph vertex (-> (get graph vertex []) (conj node)))))
-     {}
-     (line-seq rdr))))
+    {}))
 
 (defn load-weighted-graph [algo-dir file-name]
-  (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
-    (reduce
-     (fn [graph line]
+  (load-from-file
+    algo-dir
+    file-name
+    (fn [graph line]
        (let [[vertex & nodes-and-weights] (clojure.string/split line #"\s+")]
          (assoc graph vertex
            (merge (get graph vertex {})
@@ -34,20 +39,22 @@
                           {}
                           nodes-and-weights)))
          ))
-     {}
-     (line-seq rdr))))
+    {}))
+
+;;(load-weighted-graph "dijkstra" "dijkstra_test_case_1.txt")
 
 (defn load-graph-and-stats [algo-dir file-name]
-  (map persistent! (with-open [rdr (BufferedReader. (FileReader. (data-path algo-dir file-name)))]
-     (reduce
-      (fn [[graph transposed vertices] line]
-        (let [[u v] (clojure.string/split line #"\s+")]
-          (vector
-           (assoc! graph u (-> (get graph u []) (conj v)))
-           (assoc! transposed v (-> (get transposed v []) (conj u)))
-           (-> (conj! vertices u) (conj! v)))))
-      [(transient {}) (transient {}) (transient #{})]
-      (line-seq rdr)))))
+  (map persistent!
+    (load-from-file
+     algo-dir
+     file-name
+     (fn [[graph transposed vertices] line]
+       (let [[u v] (clojure.string/split line #"\s+")]
+         (vector
+          (assoc! graph u (-> (get graph u []) (conj v)))
+          (assoc! transposed v (-> (get transposed v []) (conj u)))
+          (-> (conj! vertices u) (conj! v)))))
+     [(transient {}) (transient {}) (transient #{})])))
 
 (defn int-graph [G]
   (reduce
