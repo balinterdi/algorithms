@@ -78,3 +78,11 @@
 
 (defn sort-decreasing [coll]
   (sort (fn [n1 n2] (> (Integer. n1) (Integer. n2))) coll))
+
+(defn load-int-set [algo-dir file-name]
+  (load-from-file
+   algo-dir
+   file-name
+   (fn [hash line]
+     (conj hash (Integer. line)))
+   #{}))
