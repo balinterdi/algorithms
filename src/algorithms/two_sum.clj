@@ -1,6 +1,6 @@
 ;; Implements a solution for the 2-sum problem
 ;; see https://class.coursera.org/algo-003/forum/thread?thread_id=669 for test cases
-(ns algorithms.strongly-connected-components
+(ns algorithms.two-sum
   (:require  [algorithms.core :as core]))
 
 (defn load-set [file-name]

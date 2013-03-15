@@ -86,3 +86,11 @@
    (fn [hash line]
      (conj hash (Integer. line)))
    #{}))
+
+(defn load-ints-from-file [algo-dir file-name]
+  (load-from-file
+   algo-dir
+   file-name
+   (fn [numbers line]
+     (conj numbers (Integer. line)))
+   []))
