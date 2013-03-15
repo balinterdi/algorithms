@@ -39,26 +39,25 @@
      ;;(dfs-by-finishing-times G [u] (transient #{u}) (transient []))
      (dfs-by-finishing-times G u #{}))
   ([G u explored]
-     ;;(println "stack: " (count stack) " explored: " (count explored) "path: " (count path))
      (loop [[v & vs :as stack] (list u), explored (transient explored), lhalf [], rhalf [],  iter-cnt 0]
        (do
-       (if (> (count explored) (Integer/MAX_VALUE))
-         (and (println "Exiting after " (count explored) " explored nodes") (concat lhalf rhalf))
-         (if (seq stack)
-          (let [neighbors (persistent!
-                           (reduce
-                            (fn [c u] (if (explored u) c (conj! c u)))
-                            (transient [])
-                            (G v)))]
-            (cond
-             (explored v) (recur vs explored lhalf rhalf (inc iter-cnt))
-             (empty? neighbors) (recur vs (conj! explored v) (conj lhalf v) rhalf (inc iter-cnt))
-             :else (recur (reduce (fn [stack e] (cons e stack)) vs neighbors)
-                     (conj! explored v)
-                     lhalf
-                     (cons v rhalf)
-                     (inc iter-cnt))))
-          (concat lhalf rhalf)))))
+         (when (zero? (rem iter-cnt 100000))
+           (println "v: " v "stack: " (count stack) " explored: " (count explored) "iter-cnt: " iter-cnt))
+         (if v
+           (let [neighbors (persistent!
+                            (reduce
+                             (fn [c u] (if (explored u) c (conj! c u)))
+                             (transient [])
+                             (G v)))]
+             (cond
+              (explored v) (recur vs explored lhalf rhalf (inc iter-cnt))
+              (empty? neighbors) (recur vs (conj! explored v) (conj lhalf v) rhalf (inc iter-cnt))
+              :else (recur (reduce (fn [stack e] (cons e stack)) vs neighbors)
+                           (conj! explored v)
+                           lhalf
+                           (cons v rhalf)
+                           (inc iter-cnt))))
+           (into lhalf rhalf))))
      ))
 
 (defn finishing-times [G vertices]
@@ -66,6 +65,8 @@
    Scan the transpose graph of G, and mark the finishing time for each.
    G should already be the transposed graph"
   ;;FIXME: Maybe passing several tens or hundreds of MBs of data to dfs is not such a good idea?
+  ;; StackOverlow because of lazy seqs (probably because of the remove form below)
+  ;; StackOverflowError   clojure.lang.PersistentHashMap$ArrayNode$Seq.next (PersistentHashMap.java:496)
   (loop [[u & vs :as stack] (seq vertices)
           explored #{},
           finished []]
