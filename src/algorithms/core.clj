@@ -49,7 +49,7 @@
      algo-dir
      file-name
      (fn [[graph transposed vertices] line]
-       (let [[u v] (clojure.string/split line #"\s+")]
+       (let [[u v] (map #(Integer. ^String %) (clojure.string/split line #"\s+"))]
          (vector
           (assoc! graph u (-> (get graph u []) (conj v)))
           (assoc! transposed v (-> (get transposed v []) (conj u)))
@@ -59,7 +59,7 @@
 (defn int-graph [G]
   (reduce
    (fn [G' [v edges]]
-     (assoc G' (Integer. v) (vec (map #(Integer. %) edges))))
+     (assoc G' (Integer. ^String v) (vec (map #(Integer. ^String %) edges))))
    {}
    G))
 
@@ -84,7 +84,7 @@
    algo-dir
    file-name
    (fn [hash line]
-     (conj hash (Integer. line)))
+     (conj hash (Integer. ^String line)))
    #{}))
 
 (defn load-ints-from-file [algo-dir file-name]
@@ -92,5 +92,5 @@
    algo-dir
    file-name
    (fn [numbers line]
-     (conj numbers (Integer. line)))
+     (conj numbers (Integer. ^String line)))
    []))
