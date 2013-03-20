@@ -48,37 +48,31 @@
                        (aset explored (dec i) true))
         explored? (fn [i] (aget ^booleans explored (dec i)))
         dfs-by-finishing-times
-        (fn [u]
-          (loop [[v & vs :as stack] (list u), lhalf [], rhalf [],  iter-cnt 0]
-            (if v
-              (let [neighbors (remove explored? (G v))]
-                (cond
-                 (explored? v) (recur vs lhalf rhalf (inc iter-cnt))
-                 (empty? neighbors)
-                   (do
-                     (set-explored v)
-                     (recur vs (conj lhalf v) rhalf (inc iter-cnt)))
-                 :else
-                   (do
-                     (set-explored v)
-                     (recur (reduce (fn [stack e] (cons e stack)) vs neighbors)
-                          lhalf
-                          (cons v rhalf)
-                          (inc iter-cnt)))))
-              (into lhalf rhalf))))]
+        (fn dfs [[v & vs]]
+          (cond
+           (nil? v) []
+           (explored? v) (dfs vs)
+           :else
+           (let [neighbors (into [] (filter #(not (explored? %)) (G v)))]
+             (set-explored v)
+             (concat (dfs neighbors) [v] (dfs vs)))
+           ))]
     (loop [[u & vs :as stack] (seq vertices)
            finished-count 0]
      (if (== V finished-count)
-       (into [] finished)
+       (vec finished)
        (if (explored? u)
           (recur vs finished-count)
-          (let [path (dfs-by-finishing-times u)]
-            (do
-              (set-finished finished-count path)
-              (recur vs (+ finished-count (count path))))))
+          (let [path (dfs-by-finishing-times [u])]
+            (set-finished finished-count path)
+            (recur vs (+ finished-count (count path)))))
        ))))
 
 ;;(finishing-times simple-graph)
+(def simple-graph (core/int-graph (load-graph "scc_simple_graph_1.txt")))
+(def sw-complex-graph (core/int-graph (load-graph "scc_test_case_7.txt")))
+(finishing-times (core/transpose simple-graph) (core/sort-decreasing (vertices simple-graph)))
+(finishing-times (core/transpose sw-complex-graph) (core/sort-decreasing (vertices sw-complex-graph)))
 
 (defn leaders [G vertices-by-finishing-time]
   "Second pass of Kosaraju's algorithm.
@@ -101,18 +95,15 @@
                 (cons v path)))))
         ]
     (loop [[v & vs] (reverse vertices-by-finishing-time), scc-sizes [], finished-count 0]
-      (do
-        (when (zero? (rem finished-count 1e4))
-          (println "Finished count: " finished-count))
-        (if (nil? v)
+      (if (nil? v)
         scc-sizes
         (if (explored? v)
           (recur vs scc-sizes finished-count)
           (let [path (dfs [v] [])]
             (recur vs
                    (conj scc-sizes (count path))
-                   (+ finished-count (count path)))))
-        )))))
+                   (+ finished-count (count path)))))))
+      ))
 
 (defn scc
   ([G]

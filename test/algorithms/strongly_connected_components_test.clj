@@ -19,8 +19,7 @@
     (let [simple-graph (core/int-graph (load-graph "scc_simple_graph_1.txt"))
           ft (finishing-times (core/transpose simple-graph) (core/sort-decreasing (vertices simple-graph)))]
        (is (or (= ft [3 5 2 8 6 9 1 4 7])
-               (= ft [5 2 8 3 6 9 1 4 7])
-               (= ft [5 3 2 8 6 9 1 4 7]))))))
+               (= ft [5 2 8 3 6 9 1 4 7]))))))
 
 (deftest test-scc-sizes-smallest
   (is (= (scc-sizes
