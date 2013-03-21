@@ -37,42 +37,28 @@
    Scan the transpose graph of G, and mark the finishing time for each.
    G should already be the transposed graph"
   (let [V (count vertices)
-        explored (boolean-array V)
         finished (long-array V)
-        ;;amalloy: or use java.util.Arrays/copyOfRange if you don't need to allocate the object yourself
-        set-finished (fn [offset values]
-                       (System/arraycopy (into-array Long/TYPE values) 0
-                                         finished offset
-                                         (count values)))
-        set-explored (fn [i]
-                       (aset explored (dec i) true))
-        explored? (fn [i] (aget ^booleans explored (dec i)))
+        explored (boolean-array V)
+        finishing-time (atom 0)
+        set-explored (fn [i] (aset explored (dec i) true))
+        explored? (fn [i] (let [e (aget ^booleans explored (dec i))] e))
         dfs-by-finishing-times
-        (fn dfs [[v & vs]]
-          (cond
-           (nil? v) []
-           (explored? v) (dfs vs)
-           :else
-           (let [neighbors (into [] (filter #(not (explored? %)) (G v)))]
-             (set-explored v)
-             (concat (dfs neighbors) [v] (dfs vs)))
-           ))]
-    (loop [[u & vs :as stack] (seq vertices)
-           finished-count 0]
-     (if (== V finished-count)
-       (vec finished)
-       (if (explored? u)
-          (recur vs finished-count)
-          (let [path (dfs-by-finishing-times [u])]
-            (set-finished finished-count path)
-            (recur vs (+ finished-count (count path)))))
-       ))))
-
-;;(finishing-times simple-graph)
-(def simple-graph (core/int-graph (load-graph "scc_simple_graph_1.txt")))
-(def sw-complex-graph (core/int-graph (load-graph "scc_test_case_7.txt")))
-(finishing-times (core/transpose simple-graph) (core/sort-decreasing (vertices simple-graph)))
-(finishing-times (core/transpose sw-complex-graph) (core/sort-decreasing (vertices sw-complex-graph)))
+        (fn dfs [^long u]
+          (set-explored u)
+          (doseq [v (G u)]
+            (do
+              (when-not (explored? v)
+                (dfs v))))
+          (aset finished @finishing-time u)
+          (swap! finishing-time inc))]
+    (loop [[v & vs] (seq vertices)]
+      (if v
+        (do
+          (when (not (explored? v))
+            (dfs-by-finishing-times v))
+          (recur vs))
+        (vec finished)))
+    ))
 
 (defn leaders [G vertices-by-finishing-time]
   "Second pass of Kosaraju's algorithm.
