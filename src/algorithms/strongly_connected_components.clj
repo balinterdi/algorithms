@@ -17,21 +17,6 @@
     (set (keys G))
     (reduce into (vals G))))
 
-(comment (defn dfs
-   ([G u]
-      (dfs G [u] #{u} []))
-   ([G u explored]
-      (dfs G [u] explored []))
-   ([G [v & vs] explored path]
-      (if (nil? v)
-        (reverse path)
-        (recur G
-               (remove explored (into (get G v) vs))
-               (conj explored v)
-               (cons v path)))
-      )))
-
-
 (defn finishing-times [G vertices]
   "The first pass of Kosaraju's algorithm.
    Scan the transpose graph of G, and mark the finishing time for each.
