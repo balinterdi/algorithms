@@ -8,8 +8,7 @@
 
 (defn vertices [G]
   (reduce (fn [vs [v edges]]
-            (-> (into vs (keys edges))
-                (conj v)))
+            (conj (into vs (keys edges)) v))
     #{}
     G))
 

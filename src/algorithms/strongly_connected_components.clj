@@ -46,15 +46,14 @@
         (fn dfs [^long u]
           (set-explored u)
           (doseq [v (G u)]
-            (do
-              (when-not (explored? v)
-                (dfs v))))
+            (when-not (explored? v)
+              (dfs v)))
           (aset finished @finishing-time u)
           (swap! finishing-time inc))]
     (loop [[v & vs] (seq vertices)]
       (if v
         (do
-          (when (not (explored? v))
+          (when-not (explored? v)
             (dfs-by-finishing-times v))
           (recur vs))
         (vec finished)))

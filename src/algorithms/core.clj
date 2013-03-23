@@ -22,7 +22,7 @@
     file-name
     (fn [graph line]
        (let [[vertex node] (clojure.string/split line #"\s+")]
-         (assoc graph vertex (-> (get graph vertex []) (conj node)))))
+         (assoc graph vertex (conj (get graph vertex []) node))))
     {}))
 
 (defn load-weighted-graph [algo-dir file-name]
@@ -53,9 +53,9 @@
      (fn [[graph transposed vertices] line]
        (let [[u v] (map #(Integer. ^String %) (clojure.string/split line #"\s+"))]
          (vector
-          (assoc! graph u (-> (get graph u []) (conj v)))
-          (assoc! transposed v (-> (get transposed v []) (conj u)))
-          (-> (conj! vertices u) (conj! v)))))
+          (assoc! graph u (conj (get graph u []) v))
+          (assoc! transposed v (conj (get transposed v []) u))
+          (conj! (conj! vertices u) v))))
      [(transient {}) (transient {}) (transient #{})])))
 
 (defn int-graph [G]
