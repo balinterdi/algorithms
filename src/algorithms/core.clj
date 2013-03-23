@@ -45,7 +45,7 @@
 
 ;;TODO: Should be called load-huge-graph
 ;;TODO: Don't use transients, use java arrays
-(defn load-graph-and-stats [algo-dir file-name]
+(defn load-huge-graph [algo-dir file-name]
   (map persistent!
     (load-from-file
      algo-dir

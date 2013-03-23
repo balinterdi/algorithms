@@ -9,8 +9,8 @@
 (defn load-graph [file-name]
   (core/load-graph "scc" file-name))
 
-(defn load-graph-and-stats [file-name]
-  (core/load-graph-and-stats "scc" file-name))
+(defn load-huge-graph [file-name]
+  (core/load-huge-graph "scc" file-name))
 
 (defn vertices [G]
   (into
